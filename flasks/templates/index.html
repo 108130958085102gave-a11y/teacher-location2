@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学内教員位置確認システム</title>
+    <style>
+        :root {
+            --primary: #2b6cb0;
+            --success: #48bb78;
+            --danger: #f56565;
+            --warning: #ed8936;
+            --bg: #f7fafc;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg);
+            color: #2d3748;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+        .app-title h1 { margin: 0; font-size: 24px; color: var(--primary); }
+       
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 25px;
+        }
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+
+        .map-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .floor-selector {
+            margin-bottom: 15px;
+        }
+        .floor-btn {
+            padding: 8px 16px;
+            margin-right: 8px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .floor-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .map-container {
+            position: relative;
+            width: 100%;
+            overflow-x: auto;
+            border: 2px solid #e2e8f0;
+            background: #fff;
+        }
+        .map-wrapper {
+            position: relative;
+            width: 1000px;
+            height: 350px;
+        }
+        .map-image {
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+        .map-room-clickable {
+            position: absolute;
+            border: 2px dashed transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .map-room-clickable:hover {
+            border-color: var(--primary);
+            background: rgba(66, 153, 225, 0.15);
+        }
+        .teacher-badge {
+            background: rgba(43, 108, 176, 0.9);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin: 1px;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+
+        .side-panel { display: flex; flex-direction: column; gap: 20px; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .card h2 { margin-top: 0; font-size: 18px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; }
+       
+        .teacher-item {
+            padding: 10px;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        .status-在室 { background-color: var(--success); }
+        .status-授業中 { background-color: var(--danger); }
+        .status-離席 { background-color: var(--warning); }
+        .status-出張 { background-color: #718096; }
+
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 5px; box-sizing: border-box;
+        }
+        button.btn-block {
+            width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+
+<div class="container">
+    <header>
+        <div class="app-title">
+            <h1>🏫 学内教員リアルタイム位置確認</h1>
+        </div>
+        <div id="auth-section"></div>
+    </header>
+
+
+    <div class="main-layout">
+        <div class="map-card">
+            <div class="floor-selector">
+                <button class="floor-btn active" onclick="switchFloor(1)">教室棟2階</button>
+                <button class="floor-btn" onclick="switchFloor(2)">東実習棟2階</button>
+                <button class="floor-btn" onclick="switchFloor(3)">東実習棟3階</button>
+                <button class="floor-btn" onclick="switchFloor(4)">管理棟1階</button>
+                <button class="floor-btn" onclick="switchFloor(5)">管理棟2階</button>
+            </div>
+           
+            <div class="map-container">
+                <div class="map-wrapper" id="map-wrapper">
+                    <img id="floor-map-img" class="map-image" src="" alt="校内配置図">
+                </div>
+            </div>
+            <p style="font-size: 12px; color: #718096; margin-top: 10px;">※部屋をクリックすると、詳細を確認できます（教員は現在地をここに更新可能）。</p>
+        </div>
+
+
+        <div class="side-panel">
+            <div id="login-card" class="card">
+                <h2>ユーザーログイン</h2>
+                <div class="form-group">
+                    <label>区分</label>
+                    <select id="login-role" onchange="toggleLoginFields()">
+                        <option value="student">生徒として利用</option>
+                        <option value="teacher">教職員としてログイン</option>
+                    </select>
+                </div>
+                <div id="student-field" class="form-group">
+                    <label>学籍番号（任意）</label>
+                    <input type="text" id="student-id" placeholder="例: 23001">
+                </div>
+                <div id="teacher-fields" class="form-group hidden">
+                    <label>教員ID</label>
+                    <input type="text" id="teacher-id" placeholder="sato">
+                    <label style="margin-top:8px;">パスワード</label>
+                    <input type="password" id="teacher-pass" placeholder="pass123">
+                </div>
+                <button class="btn-block" onclick="handleLogin()">ログイン</button>
+            </div>
+
+
+            <div id="update-card" class="card hidden">
+                <h2>自分の現在地を更新</h2>
+                <div class="form-group">
+                    <label>現在の状態</label>
+                    <select id="update-status">
+                        <option value="在室">在室</option>
+                        <option value="授業中">授業中</option>
+                        <option value="離席">離席</option>
+                        <option value="出張">出張</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>現在の場所</label>
+                    <select id="update-room"></select>
+                </div>
+                <div class="form-group">
+                    <label>ひとこと・メモ</label>
+                    <input type="text" id="update-note" placeholder="例: 15時まで面談中">
+                </div>
+                <button class="btn-block" style="background-color: var(--success);" onclick="handleUpdate()">情報を更新する</button>
+            </div>
+            <div id="password-card" class="card hidden">
+                <h2>パスワード変更</h2>
+                <div class="form-group">
+                    <label>現在のパスワード</label>
+                    <input type="password" id="current-pass" placeholder="現在のパスワード">
+                </div>
+                <div class="form-group">
+                    <label>新しいパスワード</label>
+                    <input type="password" id="new-pass" placeholder="新しいパスワード">
+                </div>
+                <div class="form-group">
+                    <label>新しいパスワード（確認）</label>
+                    <input type="password" id="confirm-pass" placeholder="もう一度入力">
+                </div>
+                <button class="btn-block" style="background-color: #4a5568;" onclick="handleChangePassword()">パスワードを変更する</button>
+            </div>
+            <div class="card">
+                <h2>教員一覧</h2>
+                <div id="teacher-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    let currentFloor = 1;
+    let teachersData = {};
+    let roomsData = [];
+    let currentUser = null;
+
+
+    const floorImages = {
+        1: '/static/images/floor1.png',
+        2: '/static/images/floor2.png',
+        3: '/static/images/floor3.png',
+        4: '/static/images/floor4.png',
+        5: '/static/images/floor5.png'
+    };
+
+
+    window.addEventListener('DOMContentLoaded', () => {
+        fetchData();
+        switchFloor(1);
+        toggleLoginFields();
+    });
+
+
+    async function fetchData() {
+        try {
+            const res = await fetch('/api/data');
+            const data = await res.json();
+            teachersData = data.teachers;
+            roomsData = data.rooms;
+            currentUser = data.currentUser;
+
+
+            renderAuthStatus();
+            renderTeacherList();
+            renderMapElements();
+            populateRoomDropdown();
+        } catch (err) {
+            console.error("データの取得に失敗しました", err);
+        }
+    }
+
+
+    function switchFloor(floorNum) {
+        currentFloor = floorNum;
+        document.querySelectorAll('.floor-btn').forEach((btn, idx) => {
+            btn.classList.toggle('active', idx + 1 === floorNum);
+        });
+        document.getElementById('floor-map-img').src = floorImages[floorNum];
+        renderMapElements();
+    }
+
+
+    function renderMapElements() {
+        const wrapper = document.getElementById('map-wrapper');
+        document.querySelectorAll('.map-room-clickable').forEach(el => el.remove());
+       
+        const currentRooms = roomsData.filter(r => r.floor === currentFloor);
+        currentRooms.forEach(room => {
+            const roomEl = document.createElement('div');
+            roomEl.className = 'map-room-clickable';
+            roomEl.style.left = room.x + 'px';
+            roomEl.style.top = room.y + 'px';
+            roomEl.style.width = room.width + 'px';
+            roomEl.style.height = room.height + 'px';
+            roomEl.title = room.name;
+           
+            Object.values(teachersData).forEach(t => {
+                if (t.room === room.id) {
+                    const badge = document.createElement('span');
+                    badge.className = 'teacher-badge';
+                    badge.innerText = `${t.name} (${t.status})`;
+                    roomEl.appendChild(badge);
+                }
+            });
+           
+            roomEl.addEventListener('click', () => {
+                if (currentUser && currentUser.role === 'teacher') {
+                    document.getElementById('update-room').value = room.id;
+                } else {
+                    alert(`${room.name}\nここを選択するには教員としてログインしてください。`);
+                }
+            });
+            wrapper.appendChild(roomEl);
+        });
+    }
+
+
+    function renderTeacherList() {
+        const container = document.getElementById('teacher-list');
+        container.innerHTML = '';
+        Object.entries(teachersData).forEach(([id, t]) => {
+            const item = document.createElement('div');
+            item.className = 'teacher-item';
+            const roomObj = roomsData.find(r => r.id === t.room);
+            const roomName = roomObj ? `${t.floor}F-${roomObj.name}` : t.room;
+            item.innerHTML = `<div> <strong>${t.name}</strong> <span style="font-size:12px; color:#718096;">(${t.subject})</span> <div style="font-size:12px; margin-top:2px; color:#4a5568;">📍 ${roomName}</div> ${t.note ? `💬 ${t.note}` : ''} </div> <div> <span class="status-badge status-${t.status}">${t.status}</span> </div>`;
+            container.appendChild(item);
+        });
+    }
+
+
+    function toggleLoginFields() {
+        const role = document.getElementById('login-role').value;
+        const studentField = document.getElementById('student-field');
+        const teacherFields = document.getElementById('teacher-fields');
+
+
+        if (role === 'teacher') {
+            studentField.classList.add('hidden');
+            teacherFields.classList.remove('hidden');
+        } else {
+            studentField.classList.remove('hidden');
+            teacherFields.classList.add('hidden');
+        }
+    }
+
+
+    async function handleLogin() {
+        const role = document.getElementById('login-role').value;
+        let payload = { role };
+
+
+        if (role === 'student') {
+            payload.student_id = document.getElementById('student-id').value;
+        } else if (role === 'teacher') {
+            payload.teacher_id = document.getElementById('teacher-id').value;
+            payload.password = document.getElementById('teacher-pass').value;
+        }
+
+
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (result.success) {
+                fetchData();
+            } else {
+                alert(result.message || "ログインに失敗しました");
+            }
+        } catch (err) {
+            console.error("ログイン通信エラー:", err);
+            alert("サーバーとの通信に失敗しました。");
+        }
+    }
+
+
+    async function handleLogout() {
+        await fetch('/api/logout', { method: 'POST' });
+        fetchData();
+    }
+
+
+    async function handleUpdate() {
+        const payload = {
+            status: document.getElementById('update-status').value,
+            room: document.getElementById('update-room').value,
+            note: document.getElementById('update-note').value
+        };
+        const res = await fetch('/api/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert("ステータスを更新しました！");
+            fetchData();
+        } else {
+            alert(result.message);
+        }
+    }
+
+
+    function renderAuthStatus() {
+        const authSection = document.getElementById('auth-section');
+        const loginCard = document.getElementById('login-card');
+        const updateCard = document.getElementById('update-card');
+        const passwordCard = document.getElementById('password-card');
+
+        if (currentUser) {
+            authSection.innerHTML = `<span style="margin-right:15px;">👤 <strong>${currentUser.name}</strong> さん</span> <button onclick="handleLogout()" style="padding:5px 10px; cursor:pointer;">ログアウト</button>`;
+            loginCard.classList.add('hidden');
+            if (currentUser.role === 'teacher') {
+                updateCard.classList.remove('hidden');
+                passwordCard.classList.remove('hidden');
+                const t = teachersData[currentUser.id];
+                if (t) {
+                    document.getElementById('update-status').value = t.status;
+                    document.getElementById('update-room').value = t.room;
+                    document.getElementById('update-note').value = t.note || '';
+                }
+            } else {
+                updateCard.classList.add('hidden');
+                passwordCard.classList.add('hidden');
+            }
+        } else {
+            authSection.innerHTML = `<span style="color:#718096; font-size:14px;">未ログイン</span>`;
+            loginCard.classList.remove('hidden');
+            updateCard.classList.add('hidden');
+            passwordCard.classList.add('hidden');
+        }
+    }
+
+    async function handleChangePassword() {
+        const currentPassword = document.getElementById('current-pass').value;
+        const newPassword = document.getElementById('new-pass').value;
+        const confirmPassword = document.getElementById('confirm-pass').value;
+
+        if (!currentPassword || !newPassword) {
+            alert("現在のパスワードと新しいパスワードを入力してください。");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            alert("新しいパスワード（確認）が一致しません。");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/change_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert(result.message);
+                document.getElementById('current-pass').value = '';
+                document.getElementById('new-pass').value = '';
+                document.getElementById('confirm-pass').value = '';
+            } else {
+                alert(result.message || "パスワードの変更に失敗しました。");
+            }
+        } catch (err) {
+            console.error("パスワード変更エラー:", err);
+            alert("サーバーとの通信に失敗しました。");
+        }
+    }
+
+    function populateRoomDropdown() {
+        const select = document.getElementById('update-room');
+        if (!select) return;
+        select.innerHTML = '';
+        const optOut = document.createElement('option');
+        optOut.value = '校外';
+        optOut.innerText = '校外（出張・帰宅など）';
+        select.appendChild(optOut);
+       
+        roomsData.forEach(room => {
+            const opt = document.createElement('option');
+            opt.value = room.id;
+            opt.innerText = `${room.floor}F - ${room.name}`;
+            select.appendChild(opt);
+        });
+    }
+</script>
+</body>
+</html>

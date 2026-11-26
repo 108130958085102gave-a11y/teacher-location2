@@ -104,7 +104,7 @@ teachers_db = {
 room_database = [
     # --- 教室棟２階 ---
     {
-        'id': '1F-H科',
+        'id': '2F-H科',
         'name': 'H科',
         'floor': 1,
         'x': 68,       # 左からの位置
@@ -113,7 +113,7 @@ room_database = [
         'height': 120, # 部屋の縦幅
     },
     {
-        'id': '1F-G科',
+        'id': '2F-G科',
         'name': 'G科',
         'floor': 1,
         'x': 316,
@@ -122,7 +122,7 @@ room_database = [
         'height': 120,
     },
     {
-        'id': '1F-F科',
+        'id': '2F-F科',
         'name': 'F科',
         'floor': 1,
         'x': 406,
@@ -131,7 +131,7 @@ room_database = [
         'height': 120,
     },
     {
-        'id': '1F-I科',
+        'id': '2F-I科',
         'name': 'I科',
         'floor': 1,
         'x': 496,
@@ -140,7 +140,7 @@ room_database = [
         'height': 120,
     },
     {
-        'id': '1F-M科',
+        'id': '2F-M科',
         'name': 'M科',
         'floor': 1,
         'x': 585,
@@ -149,7 +149,7 @@ room_database = [
         'height': 120,
     },
     {
-        'id': '1F-学年職員室',
+        'id': '2F-学年職員室',
         'name': '学年職員室',
         'floor': 1,
         'x': 837,
@@ -158,7 +158,7 @@ room_database = [
         'height': 300,
     },
     {
-        'id': '1F-選択教室',
+        'id': '2F-選択教室',
         'name': '選択教室',
         'floor': 1,
         'x': 15,
